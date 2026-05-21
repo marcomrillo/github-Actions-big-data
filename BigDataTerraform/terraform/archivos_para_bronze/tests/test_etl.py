@@ -1,26 +1,20 @@
 import sys
 from unittest.mock import MagicMock
 
-# ====================================================================
-# TRUCO MOCK: Simulamos la librería de AWS Glue antes de importar el script
-# ====================================================================
 class MockAwsGlueUtils:
     @staticmethod
     def getResolvedOptions(args, options):
-        # Retorna un diccionario simulado con los argumentos que pida tu script
-        return {"JOB_NAME": "test_glue_job"}
+        return {"input_path": "fake", "output_path": "fake"}
 
-# Creamos módulos falsos en el sistema de Python
 sys.modules['awsglue'] = MagicMock()
 sys.modules['awsglue.utils'] = MockAwsGlueUtils
-sys.modules['awsglue.context'] = MagicMock()
-sys.modules['awsglue.job'] = MagicMock()
 
-# ====================================================================
-# AHORA SÍ PROSEGUIMOS CON LOS IMPORTS Y TESTS NORMALES
-# ====================================================================
 import pytest
 from pyspark.sql import SparkSession
+from pyspark.sql.types import (
+    StructType, StructField, StringType,
+    DoubleType, ArrayType
+)
 from scripts.etl_sales import transform
 
 @pytest.fixture(scope="module")
@@ -30,24 +24,54 @@ def spark():
         .master("local[*]") \
         .getOrCreate()
 
+# Schema explícito que coincide exactamente con lo que el ETL espera
+DATO_SCHEMA = StructType([
+    StructField("fecha",             StringType(), True),
+    StructField("variableConsulta",  StringType(), True),
+    StructField("calidad",           StringType(), True),
+    StructField("valor",             DoubleType(), True),
+])
+
+SCHEMA = StructType([
+    StructField("nombre",       StringType(), True),
+    StructField("nombreShorto", StringType(), True),
+    StructField("latitud",      DoubleType(), True),
+    StructField("longitud",     DoubleType(), True),
+    StructField("datos",        ArrayType(DATO_SCHEMA), True),
+])
+
 def test_transform_schema(spark):
     data = [
-        ("1", "101", "laptop", "1200", "Bogota", "2024-01-01", ["item1", "item2"])
+        (
+            "Estacion Central", "EC01", 4.65, -74.05,
+            [
+                ("2026-05-21 10:00:00", "PM2.5", "1", 25.5),
+                ("2026-05-21 11:00:00", "PM2.5", "1", 30.2)
+            ]
+        )
     ]
-    columns = ["order_id", "customer_id", "product", "amount", "city", "date", "datos"]
-    
-    df = spark.createDataFrame(data, columns)
-    result = transform(df)
-    
-    assert "dato" in result.columns
 
-def test_transform_values(spark):
-    data = [
-        ("1", "101", "laptop", "1200", "Bogota", "2024-01-01", ["item1"])
-    ]
-    columns = ["order_id", "customer_id", "product", "amount", "city", "date", "datos"]
-    
-    df = spark.createDataFrame(data, columns)
+    df = spark.createDataFrame(data, SCHEMA)
     result = transform(df)
-    
-    assert result.count() > 0
+
+    assert "estacion"         in result.columns
+    assert "codigo_estacion"  in result.columns
+    assert "fecha"            in result.columns
+    assert "valor"            in result.columns
+
+def test_transform_filters_invalid_values(spark):
+    data = [
+        (
+            "Estacion Norte", "EN02", 4.70, -74.10,
+            [
+                ("2026-05-21 12:00:00", "PM2.5", "1", 250.0),  # Válido
+                ("2026-05-21 13:00:00", "PM2.5", "1", -10.0),  # Inválido
+                ("2026-05-21 14:00:00", "PM2.5", "1", 600.0)   # Inválido
+            ]
+        )
+    ]
+
+    df = spark.createDataFrame(data, SCHEMA)
+    result = transform(df)
+
+    assert result.count() == 1
