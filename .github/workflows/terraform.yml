@@ -9,15 +9,24 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: BigDataTerraform/terraform/envs/dev
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # AWS Auth
+      # ==========================================
+      # 1. DIAGNÓSTICO (Para ver tus carpetas reales)
+      # ==========================================
+      - name: Listar estructura del repositorio
+        run: |
+          echo "=== ¿Dónde está parado el servidor de GitHub? ==="
+          pwd
+          echo "=== Archivos y carpetas detectadas ==="
+          ls -R
+          echo "================================================"
+
+      # ==========================================
+      # 2. CONFIGURACIÓN DE CREDENCIALES
+      # ==========================================
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -25,56 +34,56 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # PYTHON
+      # ==========================================
+      # 3. ENTORNO PYTHON Y PRUEBAS UNITARIAS
+      # ==========================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # DEPENDENCIAS
+      # Buscamos e instalamos dependencias donde sea que esté el código
       - name: Install dependencies
         run: |
           pip install pytest pyspark
       
-      # Cambiar path usando la ruta absoluta correcta con BigDataTerraform
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze" >> $GITHUB_ENV
-
-      # RUN TESTS
-      - name: Run Tests
+      # Buscamos dinámicamente la ruta de la carpeta archivos_para_bronze
+      - name: Set PYTHONPATH & Run Tests
         run: |
-          pytest $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/tests/
+          BRONZE_PATH=$(find . -type d -name "archivos_para_bronze" | head -n 1)
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/$BRONZE_PATH" >> $GITHUB_ENV
+          pytest "$GITHUB_WORKSPACE/$BRONZE_PATH/tests/"
 
-      # Terraform (Wrapper desactivado para outputs limpios)
+      # ==========================================
+      # 4. DESPLIEGUE CON TERRAFORM
+      # ==========================================
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
 
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan
-        run: terraform plan -var-file="dev.tfvars"
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -var-file="dev.tfvars"
-
-      # Obtener outputs de forma segura
-      - name: Get Terraform Outputs
-        id: outputs
+      # Buscamos dinámicamente la carpeta dev para ejecutar Terraform ahí dentro
+      - name: Terraform Core Workflow
         run: |
+          DEV_DIR=$(find . -type d -name "dev" | grep "terraform" | head -n 1)
+          cd "$DEV_DIR"
+          
+          echo "=== Iniciando Terraform en: $DEV_DIR ==="
+          terraform init
+          terraform validate
+          terraform plan -var-file="dev.tfvars"
+          terraform apply -auto-approve -var-file="dev.tfvars"
+          
+          # Extraemos el output y lo guardamos globalmente
           echo "BRONZE_BUCKET=$(terraform output -raw bronze_bucket_name)" >> $GITHUB_ENV
 
-      # Subir CSV usando la ruta absoluta corregida
-      - name: Upload CSV
+      # ==========================================
+      # 5. CARGA DE ARTEFACTOS A AMAZON S3
+      # ==========================================
+      - name: Upload Artifacts to S3
         run: |
-          aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/sales_small.csv s3://$BRONZE_BUCKET/
-
-      # Subir script Glue usando la ruta absoluta corregida
-      - name: Upload Glue Script
-        run: |
-          aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/etl_sales.py s3://$BRONZE_BUCKET/scripts/etl_sales.py
+          BRONZE_PATH=$(find . -type d -name "archivos_para_bronze" | head -n 1)
+          
+          echo "=== Subiendo Datos y Scripts a S3 ($BRONZE_BUCKET) ==="
+          aws s3 cp "$BRONZE_PATH/sales_small.csv" "s3://$BRONZE_BUCKET/"
+          aws s3 cp "$BRONZE_PATH/scripts/etl_sales.py" "s3://$BRONZE_BUCKET/scripts/etl_sales.py"
