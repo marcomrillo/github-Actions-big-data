@@ -10,7 +10,7 @@ def transform(df):
     # 2. Flatten del JSON y casteo de tipos
     df_flat = df_exploded.select(
         col("nombre").alias("estacion"),
-        col("nombreCorto").alias("codigo_estacion"),
+        col("nombreShorto").alias("codigo_estacion"),
         col("latitud").cast("double"),
         col("longitud").cast("double"),
         to_timestamp(col("dato.fecha")).alias("fecha"),
@@ -23,7 +23,7 @@ def transform(df):
     df_clean = df_flat.dropna(subset=["fecha", "valor"])
     df_clean = df_clean.dropDuplicates(subset=["codigo_estacion", "fecha", "variable"])
     
-    # 4. Filtro de negocio
+    # 4. Filtro de negocio (Evita anomalías de sensores)
     df_final = df_clean.filter(
         (col("valor") >= 0) & (col("valor") <= 500)
     )
@@ -31,17 +31,12 @@ def transform(df):
     return df_final
 
 def main():
-    # Recibe las rutas dinámicamente desde AWS Glue / Terraform
     args = getResolvedOptions(sys.argv, ['input_path', 'output_path'])
-
     spark = SparkSession.builder.getOrCreate()
 
-    # Cambiado a JSON multiline para tus datos reales
     df = spark.read.option("multiline", "true").json(args['input_path'])
-
     df_transformed = transform(df)
 
-    # Guarda particionando eficientemente por estación
     df_transformed.write \
         .mode("overwrite") \
         .partitionBy("codigo_estacion") \
