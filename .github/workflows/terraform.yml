@@ -67,10 +67,16 @@ jobs:
 
       # Obtener outputs de forma segura
       - name: Get Terraform Outputs
-        id: outputs
         run: |
-          echo "BRONZE_BUCKET=$(terraform output -raw bronze_bucket_name)" >> $GITHUB_ENV
+            BUCKET=$(terraform output -raw raw_bucket_name)
+            if [ -z "$BUCKET" ]; then
+            echo "ERROR: raw_bucket_name output está vacío"
+            exit 1
+            fi
+            echo "BRONZE_BUCKET=$BUCKET" >> $GITHUB_ENV
+            echo "Bucket capturado: $BUCKET"
 
+         
       # Subir JSON usando la ruta absoluta corregida
       - name: Upload JSON
         run: |
