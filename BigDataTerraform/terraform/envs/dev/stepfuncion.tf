@@ -46,16 +46,59 @@ resource "aws_sfn_state_machine" "sales_etl" {
   role_arn = aws_iam_role.sfn_glue.arn
 
   definition = jsonencode({
-    Comment = "Orquesta el Glue job de ventas"
-    StartAt = "RunSalesEtl"
+    Comment = "Pipeline Calidad Aire Bronze Silver Gold"
+    StartAt = "BronzeToSilver"
     States = {
-      RunSalesEtl = {
+      BronzeToSilver = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
-          JobName = "${var.project}-${var.env}-sales-etl"
+          JobName = "${var.project}-${var.env}-bronze-to-silver"
         }
+        Retry = [
+          {
+            ErrorEquals     = ["States.ALL"]
+            IntervalSeconds = 30
+            MaxAttempts     = 2
+            BackoffRate     = 2
+          }
+        ]
+        Catch = [
+          {
+            ErrorEquals = ["States.ALL"]
+            Next        = "PipelineFailed"
+          }
+        ]
+        Next = "SilverToGold"
+      }
+
+      SilverToGold = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::glue:startJobRun.sync"
+        Parameters = {
+          JobName = "${var.project}-${var.env}-silver-to-gold"
+        }
+        Retry = [
+          {
+            ErrorEquals     = ["States.ALL"]
+            IntervalSeconds = 30
+            MaxAttempts     = 2
+            BackoffRate     = 2
+          }
+        ]
+        Catch = [
+          {
+            ErrorEquals = ["States.ALL"]
+            Next        = "PipelineFailed"
+          }
+        ]
         End = true
+      }
+
+      PipelineFailed = {
+        Type  = "Fail"
+        Cause = "Glue Job Failed"
+        Error = "PipelineExecutionError"
       }
     }
   })
