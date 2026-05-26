@@ -21,28 +21,20 @@ data "aws_caller_identity" "current" {}
 # =================================================================
 module "raw_bucket" {
   source      = "../../modules/s3_lake"
-  project     = var.project
-  env         = var.env
-  account_id  = data.aws_caller_identity.current.account_id
-  bucket_name = "datalake-${var.env}-raw-${data.aws_caller_identity.current.account_id}"
+  # CORRECCIÓN: Nombre limpio y único
+  bucket_name = "${var.project}-${var.env}-raw-${data.aws_caller_identity.current.account_id}"
   tags        = var.tags
 }
 
 module "staging_bucket" {
   source      = "../../modules/s3_lake"
-  project     = var.project
-  env         = var.env
-  account_id  = data.aws_caller_identity.current.account_id
-  bucket_name = "datalake-${var.env}-silver-${data.aws_caller_identity.current.account_id}"
+  bucket_name = "${var.project}-${var.env}-silver-${data.aws_caller_identity.current.account_id}"
   tags        = var.tags
 }
 
 module "analytics_bucket" {
   source      = "../../modules/s3_lake"
-  project     = var.project
-  env         = var.env
-  account_id  = data.aws_caller_identity.current.account_id
-  bucket_name = "datalake-${var.env}-gold-${data.aws_caller_identity.current.account_id}"
+  bucket_name = "${var.project}-${var.env}-gold-${data.aws_caller_identity.current.account_id}"
   tags        = var.tags
 }
 
