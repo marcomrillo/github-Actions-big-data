@@ -36,25 +36,24 @@ jobs:
         run: |
           pip install pytest pyspark
       
-      # Cambiar path usando la ruta absoluta correcta
-      
-      # Cambiar path apuntando directamente a la raíz de archivos_para_bronze
+      # Set PYTHONPATH para que los tests encuentren los scripts
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze" >> $GITHUB_ENV
 
       # RUN TESTS
       - name: Run Tests
         run: |
-          pytest $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/tests/
+          python -m pytest $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/tests/
 
-      # Terraform (Wrapper desactivado para outputs limpios)
+      # Terraform Setup
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
 
+      # Inicialización con -upgrade para evitar conflictos de versiones
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -upgrade
 
       - name: Terraform Validate
         run: terraform validate
@@ -65,24 +64,20 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file="dev.tfvars"
 
-      # Obtener outputs de forma segura
+      # Capturar bucket para scripts
       - name: Get Terraform Outputs
         run: |
             BUCKET=$(terraform output -raw raw_bucket_name)
-            if [ -z "$BUCKET" ]; then
-            echo "ERROR: raw_bucket_name output está vacío"
-            exit 1
-            fi
             echo "BRONZE_BUCKET=$BUCKET" >> $GITHUB_ENV
-            echo "Bucket capturado: $BUCKET"
 
-         
-      # Subir JSON usando la ruta absoluta corregida
+      # Subir datos crudos
       - name: Upload JSON
         run: |
           aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/Datos_SIATA_Aire_pm25_reducido.json s3://$BRONZE_BUCKET/
 
-      # Subir script Glue usando la ruta absoluta corregida
-      - name: Upload Glue Script
+      # Subir los 3 scripts de la arquitectura Medallion
+      - name: Upload Glue Scripts
         run: |
-          aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/etl_sales.py s3://$BRONZE_BUCKET/scripts/etl_sales.py
+          aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/validate_expectations.py s3://$BRONZE_BUCKET/scripts/
+          aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/bronze_to_silver.py s3://$BRONZE_BUCKET/scripts/
+          aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/silver_to_gold.py s3://$BRONZE_BUCKET/scripts/
