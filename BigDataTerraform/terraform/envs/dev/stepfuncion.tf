@@ -46,10 +46,38 @@ resource "aws_sfn_state_machine" "sales_etl" {
   role_arn = aws_iam_role.sfn_glue.arn
 
   definition = jsonencode({
-    Comment = "Pipeline Calidad Aire Bronze Silver Gold"
-    StartAt = "BronzeToSilver"
+    Comment = "Pipeline Calidad Aire Bronze Silver Gold con Compuerta de Gobierno GX"
+    StartAt = "DataQuality_Validation"
     States = {
-      BronzeToSilver = {
+
+      # ─── NUEVO PASO INICIAL: VALIDACIÓN CON GREAT EXPECTATIONS ───
+      "DataQuality_Validation" = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::glue:startJobRun.sync"
+        Parameters = {
+          # Este será el nuevo Job que añadiremos en tu archivo de Glue
+          JobName = "${var.project}-${var.env}-data-quality"
+        }
+        Retry = [
+          {
+            ErrorEquals     = ["States.ALL"]
+            IntervalSeconds = 30
+            MaxAttempts     = 2
+            BackoffRate     = 2
+          }
+        ]
+        Catch = [
+          {
+            ErrorEquals = ["States.ALL"]
+            Next        = "PipelineFailed"
+          }
+        ]
+        # Si la calidad es exitosa, arranca tu flujo normal anterior
+        Next = "BronzeToSilver"
+      }
+
+      # ─── TU PASO 1 ORIGINAL: BRONZE TO SILVER ───
+      "BronzeToSilver" = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
@@ -72,7 +100,8 @@ resource "aws_sfn_state_machine" "sales_etl" {
         Next = "SilverToGold"
       }
 
-      SilverToGold = {
+      # ─── TU PASO 2 ORIGINAL: SILVER TO GOLD ───
+      "SilverToGold" = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
         Parameters = {
@@ -95,7 +124,8 @@ resource "aws_sfn_state_machine" "sales_etl" {
         End = true
       }
 
-      PipelineFailed = {
+      # ─── TU MANEJADOR DE ERRORES ORIGINAL ───
+      "PipelineFailed" = {
         Type  = "Fail"
         Cause = "Glue Job Failed"
         Error = "PipelineExecutionError"

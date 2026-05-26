@@ -1,10 +1,15 @@
 import sys
 from unittest.mock import MagicMock
 
+# Ajustamos el Mock para que soporte los 3 argumentos del nuevo Data Lake multinivel
 class MockAwsGlueUtils:
     @staticmethod
     def getResolvedOptions(args, options):
-        return {"input_path": "fake", "output_path": "fake"}
+        return {
+            "input_path": "fake_bronze_path", 
+            "silver_path": "fake_silver_path", 
+            "gold_path": "fake_gold_path"
+        }
 
 sys.modules['awsglue'] = MagicMock()
 sys.modules['awsglue.utils'] = MockAwsGlueUtils
@@ -15,7 +20,7 @@ from pyspark.sql.types import (
     StructType, StructField, StringType,
     DoubleType, ArrayType
 )
-from scripts.etl_sales import transform
+from archivos_para_bronze.scripts.etl_air_quality import transform
 
 @pytest.fixture(scope="module")
 def spark():
@@ -65,8 +70,8 @@ def test_transform_filters_invalid_values(spark):
             "Estacion Norte", "EN02", 4.70, -74.10,
             [
                 ("2026-05-21 12:00:00", "PM2.5", "1", 250.0),  # Válido
-                ("2026-05-21 13:00:00", "PM2.5", "1", -10.0),  # Inválido
-                ("2026-05-21 14:00:00", "PM2.5", "1", 600.0)   # Inválido
+                ("2026-05-21 13:00:00", "PM2.5", "1", -10.0),  # Inválido (Menor a 0)
+                ("2026-05-21 14:00:00", "PM2.5", "1", 600.0)   # Inválido (Mayor a 500)
             ]
         )
     ]
@@ -74,4 +79,5 @@ def test_transform_filters_invalid_values(spark):
     df = spark.createDataFrame(data, SCHEMA)
     result = transform(df)
 
+    # El filtro de negocio (0-500) debe dejar únicamente 1 fila de las 3 ingresadas
     assert result.count() == 1
