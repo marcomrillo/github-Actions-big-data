@@ -1,0 +1,140 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "FullAccessToS3",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "FullAccessToGlue",
+            "Effect": "Allow",
+            "Action": "glue:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowCloudWatchLogs",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowAthenaQueries",
+            "Effect": "Allow",
+            "Action": [
+                "athena:*",
+                "lakeformation:*",
+                "iam:PassRole"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowCloudWatchLogsExtended",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:PutRetentionPolicy",
+                "logs:DeleteLogGroup",
+                "logs:DescribeLogGroups",
+                "logs:ListTagsForResource"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowCloudWatchAlarmsAndDashboards",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:PutMetricAlarm",
+                "cloudwatch:DeleteAlarms",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:PutDashboard",
+                "cloudwatch:GetDashboard",
+                "cloudwatch:DeleteDashboards",
+                "cloudwatch:ListTagsForResource"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowDynamoDbTerraformStateLock",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowIamForTerraformExtended",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:UpdateRole",
+                "iam:CreatePolicy",
+                "iam:DeletePolicy",
+                "iam:CreatePolicyVersion",
+                "iam:DeletePolicyVersion",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PassRole",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:GetRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:GetPolicy",
+                "iam:ListPolicies",
+                "iam:GetPolicyVersion",
+                "iam:ListInstanceProfilesForRole",
+                "iam:ListPolicyVersions",
+                "iam:ListAttachedUserPolicies",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:ListRoleTags"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowCloudWatchMetricsRead",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:GetMetricData",
+                "cloudwatch:ListMetrics",
+                "cloudwatch:GetMetricStatistics"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "StepFunctionsForTerraformAndUse",
+            "Effect": "Allow",
+            "Action": [
+                "states:ValidateStateMachineDefinition",
+                "states:CreateStateMachine",
+                "states:DeleteStateMachine",
+                "states:UpdateStateMachine",
+                "states:DescribeStateMachine",
+                "states:DescribeStateMachineForExecution",
+                "states:ListStateMachines",
+                "states:ListStateMachineVersions",
+                "states:TagResource",
+                "states:UntagResource",
+                "states:ListTagsForResource",
+                "states:PublishStateMachineVersion",
+                "states:StartExecution",
+                "states:DescribeExecution",
+                "states:StopExecution",
+                "states:GetExecutionHistory",
+                "states:ListExecutions"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
