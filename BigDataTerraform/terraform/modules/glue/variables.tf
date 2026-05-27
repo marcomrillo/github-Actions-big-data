@@ -5,6 +5,7 @@ variable "script_location" {}
 
 variable "raw_bucket" {}
 variable "staging_bucket" {}
+variable "analytics_bucket" {}
 variable "temp_bucket" {}
 
 variable "tags" {

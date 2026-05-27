@@ -81,3 +81,34 @@ jobs:
           aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/validate_expectations.py s3://$BRONZE_BUCKET/scripts/
           aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/bronze_to_silver.py s3://$BRONZE_BUCKET/scripts/
           aws s3 cp $GITHUB_WORKSPACE/BigDataTerraform/terraform/archivos_para_bronze/scripts/silver_to_gold.py s3://$BRONZE_BUCKET/scripts/
+
+      # Arrancar la Step Function y esperar a que termine el pipeline completo
+      - name: Run ETL Pipeline (Step Function)
+        run: |
+          set -e
+          SM_ARN=$(aws stepfunctions list-state-machines \
+            --query "stateMachines[?name=='datalake-dev-sales-etl-pipeline'].stateMachineArn" \
+            --output text)
+          echo "State machine: $SM_ARN"
+
+          EXEC_ARN=$(aws stepfunctions start-execution \
+            --state-machine-arn "$SM_ARN" \
+            --query executionArn --output text)
+          echo "Ejecución iniciada: $EXEC_ARN"
+
+          # Esperar a que termine (los jobs Glue pueden tardar varios minutos)
+          STATUS="RUNNING"
+          while [ "$STATUS" = "RUNNING" ]; do
+            sleep 30
+            STATUS=$(aws stepfunctions describe-execution \
+              --execution-arn "$EXEC_ARN" --query status --output text)
+            echo "Estado del pipeline: $STATUS"
+          done
+
+          if [ "$STATUS" != "SUCCEEDED" ]; then
+            echo "::error::El pipeline terminó con estado $STATUS"
+            aws stepfunctions describe-execution --execution-arn "$EXEC_ARN" \
+              --query '{status:status, error:error, cause:cause}' --output json
+            exit 1
+          fi
+          echo "Pipeline completado correctamente ✅"
