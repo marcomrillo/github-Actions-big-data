@@ -41,7 +41,7 @@ DATO_SCHEMA = StructType([
 
 SCHEMA = StructType([
     StructField("nombre",       StringType(), True),
-    StructField("nombreShorto", StringType(), True),
+    StructField("nombreCorto", StringType(), True),
     StructField("latitud",      DoubleType(), True),
     StructField("longitud",     DoubleType(), True),
     StructField("datos",        ArrayType(DATO_SCHEMA), True),

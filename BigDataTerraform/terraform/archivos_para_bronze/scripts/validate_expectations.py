@@ -30,7 +30,7 @@ def main():
         batch_request=batch_request,
         expectation_suite_name=suite_name,
     )
-    for column in ["nombre", "nombreShorto", "latitud", "longitud", "datos"]:
+    for column in ["nombre", "nombreCorto", "latitud", "longitud", "datos"]:
         validator.expect_column_to_exist(column)
     validator.save_expectation_suite(discard_failed_expectations=False)
 

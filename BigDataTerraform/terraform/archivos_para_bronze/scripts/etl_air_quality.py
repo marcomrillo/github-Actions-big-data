@@ -10,7 +10,7 @@ def transform(df):
     # 2. Flatten del JSON y casteo de tipos
     df_flat = df_exploded.select(
         col("nombre").alias("estacion"),
-        col("nombreShorto").alias("codigo_estacion"),
+        col("nombreCorto").alias("codigo_estacion"),
         col("latitud").cast("double"),
         col("longitud").cast("double"),
         to_timestamp(col("dato.fecha")).alias("fecha"),
